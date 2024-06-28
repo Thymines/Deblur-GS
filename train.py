@@ -49,16 +49,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     # init visdom
     is_open = check_socket_open(dataset.visdom_server, dataset.visdom_port)
     retry = None
-    while not is_open:
-        retry = input(
-            "visdom port ({}:{}) not open, retry? (y/n) ".format(dataset.visdom_server, dataset.visdom_port))
-        if retry not in ["y", "n"]:
-            continue
-        if retry == "y":
-            is_open = check_socket_open(
-                dataset.visdom_server, dataset.visdom_port)
-        else:
-            break
+    # while not is_open:
+    #     retry = input(
+    #         "visdom port ({}:{}) not open, retry? (y/n) ".format(dataset.visdom_server, dataset.visdom_port))
+    #     if retry not in ["y", "n"]:
+    #         continue
+    #     if retry == "y":
+    #         is_open = check_socket_open(
+    #             dataset.visdom_server, dataset.visdom_port)
+    #     else:
+    #         break
     vis = visdom.Visdom(
         server=dataset.visdom_server, port=dataset.visdom_port)
 
@@ -70,9 +70,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         gaussians.restore(model_params, opt)
 
     blur_blend_embedding = torch.nn.Embedding(
-        len(scene.getTrainCameras()), opt.blur_sample_num).cuda()
+        len(scene.getTrainCameras(dataset.resolution)), opt.blur_sample_num).cuda()
     blur_blend_embedding.weight = torch.nn.Parameter(torch.ones(
-        len(scene.getTrainCameras()), opt.blur_sample_num).cuda())
+        len(scene.getTrainCameras(dataset.resolution)), opt.blur_sample_num).cuda())
+    
+    # 在ExBluRF中，用于做模糊的若干个渲染结果是均匀混合的，但是DeBlur-GS认为，针对于每个相机图像的运动轨迹，可以联合优化这些渲染图像间的混合权重
+    # 这样，渲染的结果就不再是在运动轨迹上均匀采样的图像，而更接近于真实的延运动轨迹的辐照度积分。
     optimizer = torch.optim.Adam([
         {'params': blur_blend_embedding.parameters(),
          'lr': 1e-3, "name": "blur blend parameters"},
@@ -128,7 +131,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         # Pick a random Camera
         if not viewpoint_stack:
-            viewpoint_stack = scene.getTrainCameras().copy()
+            viewpoint_stack = scene.getTrainCameras(dataset.resolution).copy()
 
         viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
         blur_weight = blur_blend_embedding(
@@ -308,8 +311,8 @@ def training_report(tb_writer, vis, iteration, Ll1, loss, l1_loss, elapsed, test
     if iteration in testing_iterations:
         torch.cuda.empty_cache()
 
-        train_cameras = scene.getTrainCameras()
-        test_cameras = scene.getTestCameras()
+        train_cameras = scene.getTrainCameras(scene.resolution)
+        test_cameras = scene.getTestCameras(scene.resolution)
         train_pose = torch.stack([cam.get_pose() for cam in train_cameras])
         train_pose_GT = torch.stack([cam.pose_gt for cam in train_cameras])
         test_pose_gt = torch.stack([cam.pose_gt for cam in test_cameras])
@@ -319,8 +322,8 @@ def training_report(tb_writer, vis, iteration, Ll1, loss, l1_loss, elapsed, test
         vis_cameras(vis, step=iteration, poses=[
                     aligned_train_pose, train_pose_GT])
 
-        validation_configs = ({'name': 'test', 'cameras': scene.getTestCameras()},
-                              {'name': 'train', 'cameras': [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(5, 30, 5)]})
+        validation_configs = ({'name': 'test', 'cameras': scene.getTestCameras(scene.resolution)},
+                              {'name': 'train', 'cameras': [scene.getTrainCameras(scene.resolution)[idx % len(scene.getTrainCameras(scene.resolution))] for idx in range(5, 30, 5)]})
 
         for config in validation_configs:
             if config['cameras'] and len(config['cameras']) > 0:

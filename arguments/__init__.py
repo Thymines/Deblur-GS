@@ -62,8 +62,8 @@ class ModelParams(ParamGroup):
         self.bezier_order = 7
         self.mode = "Linear"  # Linear, Spline, Bezier
         self.eval = False
-        self.visdom_server = "127.0.0.1"
-        self.visdom_port = 2333
+        self.visdom_server = "localhost"
+        self.visdom_port = 8097
         super().__init__(parser, "Loading Parameters", sentinel)
 
     def extract(self, args):

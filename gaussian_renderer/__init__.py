@@ -12,13 +12,13 @@
 import torch
 import math
 from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
-from scene.cameras import align_cameras
+from scene.cameras import align_cameras,Camera
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 from utils.pose_utils import Quaternion, Lie, interpolation_linear, interpolation_spline
 
 
-def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, scaling_modifier=1.0, override_color=None, mode="train", interp_alpha=0.0):
+def render(viewpoint_camera:Camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, scaling_modifier=1.0, override_color=None, mode="train", interp_alpha=0.0):
     """
     Render the scene. 
 
@@ -78,7 +78,10 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, sc
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
 
     means3D = pc.get_xyz
+    # 这个if else语句块将相机的变换（相机位姿插值的结果，相对于李群的幺元，即之后仍然要乘上李群幺元这个相机位姿（world_view_transform/view_matrix），才能得到真实的世界坐标系下的相机位姿）
+    # 应用在了原点云的空间坐标上（点不动，相机动vs点动，相机不动）
     if mode == "train":
+        # 当interp_alpha = 0 时，似乎相机位姿与原来的保持了一致？
         gaussian_trans = viewpoint_camera.get_gaussian_trans(interp_alpha)
         means3D = torch.cat([means3D, torch.ones_like(
             means3D[..., :1])], dim=-1)@gaussian_trans.transpose(-1, -2)

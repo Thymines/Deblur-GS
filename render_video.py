@@ -54,7 +54,7 @@ def render_video(model_path, iteration, scene, gaussians, pipeline, background):
         model_path, "novel_view", "depth")
     makedirs(render_path, exist_ok=True)
     makedirs(depth_path, exist_ok=True)
-    train_cameras = scene.getTrainCameras()
+    train_cameras = scene.getTrainCameras(scene.resolution)
     train_pose = torch.stack([cam.pose_gt for cam in train_cameras])
     idx_center = (train_pose-train_pose.mean(dim=0, keepdim=True)
                   )[..., 3].norm(dim=-1).argmin()

@@ -104,11 +104,11 @@ def render_sets(dataset: ModelParams, iteration: int, pipeline: PipelineParams, 
 
     if not skip_train:
         render_set(dataset.model_path, "train", scene.loaded_iter,
-                   scene.getTrainCameras(), gaussians, pipeline, background, optim_pose)
+                   scene.getTrainCameras(scene.resolution), gaussians, pipeline, background, optim_pose)
 
     if not skip_test:
         render_set(dataset.model_path, "test", scene.loaded_iter,
-                   scene.getTestCameras(), gaussians, pipeline, background, optim_pose)
+                   scene.getTestCameras(scene.resolution), gaussians, pipeline, background, optim_pose)
 
 
 if __name__ == "__main__":
